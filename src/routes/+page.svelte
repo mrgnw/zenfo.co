@@ -1,168 +1,350 @@
 <script lang="ts">
-	import type { Photo } from '$lib/types.js';
-	import PhotoGrid from '$lib/components/PhotoGrid.svelte';
-	import PhotoViewer from '$lib/components/PhotoViewer.svelte';
+	import DepthPhoto from '$lib/components/DepthPhoto.svelte';
+	import DepthSlice from '$lib/components/DepthSlice.svelte';
 	import { onMount } from 'svelte';
 
-	let photos: Photo[] = $state([]);
-	let viewerOpen = $state(false);
-	let viewerIndex = $state(0);
-
-	function generateImage(width: number, height: number, hue: number, pattern: string): string {
-		const c = document.createElement('canvas');
-		c.width = width;
-		c.height = height;
-		const ctx = c.getContext('2d')!;
-
-		const bg = ctx.createLinearGradient(0, 0, width, height);
-		bg.addColorStop(0, `hsl(${hue}, 40%, 15%)`);
-		bg.addColorStop(1, `hsl(${hue + 60}, 40%, 25%)`);
-		ctx.fillStyle = bg;
-		ctx.fillRect(0, 0, width, height);
-
-		if (pattern === 'circles') {
-			for (let i = 0; i < 5; i++) {
-				ctx.beginPath();
-				ctx.arc(
-					width * (0.2 + Math.random() * 0.6),
-					height * (0.2 + Math.random() * 0.6),
-					30 + Math.random() * 80,
-					0, Math.PI * 2
-				);
-				ctx.fillStyle = `hsla(${hue + i * 30}, 50%, 50%, 0.3)`;
-				ctx.fill();
-			}
-		} else if (pattern === 'lines') {
-			for (let i = 0; i < 8; i++) {
-				ctx.beginPath();
-				ctx.moveTo(Math.random() * width, Math.random() * height);
-				ctx.lineTo(Math.random() * width, Math.random() * height);
-				ctx.strokeStyle = `hsla(${hue + i * 20}, 60%, 60%, 0.4)`;
-				ctx.lineWidth = 2 + Math.random() * 4;
-				ctx.stroke();
-			}
-		} else {
-			for (let i = 0; i < 6; i++) {
-				const x = Math.random() * width;
-				const y = Math.random() * height;
-				const s = 20 + Math.random() * 60;
-				ctx.fillStyle = `hsla(${hue + i * 25}, 45%, 55%, 0.25)`;
-				ctx.fillRect(x, y, s, s * (0.5 + Math.random()));
-			}
-		}
-
-		return c.toDataURL('image/png');
-	}
-
-	function generateDepthMap(width: number, height: number, variant: string): string {
-		const c = document.createElement('canvas');
-		c.width = width;
-		c.height = height;
-		const ctx = c.getContext('2d')!;
-
-		if (variant === 'radial') {
-			const g = ctx.createRadialGradient(
-				width / 2, height / 2, 0,
-				width / 2, height / 2, Math.max(width, height) / 2
-			);
-			g.addColorStop(0, '#fff');
-			g.addColorStop(1, '#000');
-			ctx.fillStyle = g;
-			ctx.fillRect(0, 0, width, height);
-		} else if (variant === 'horizontal') {
-			const g = ctx.createLinearGradient(0, 0, width, 0);
-			g.addColorStop(0, '#000');
-			g.addColorStop(0.5, '#fff');
-			g.addColorStop(1, '#000');
-			ctx.fillStyle = g;
-			ctx.fillRect(0, 0, width, height);
-		} else {
-			const g = ctx.createLinearGradient(0, 0, 0, height);
-			g.addColorStop(0, '#fff');
-			g.addColorStop(1, '#333');
-			ctx.fillStyle = g;
-			ctx.fillRect(0, 0, width, height);
-		}
-
-		return c.toDataURL('image/png');
-	}
-
-	const demoData = [
-		{ title: 'Twilight Coast', caption: 'Pacific shoreline at dusk', hue: 220, aspect: 1.5, pattern: 'circles', depth: 'radial' },
-		{ title: 'Forest Path', caption: 'Muir Woods, California', hue: 130, aspect: 0.75, pattern: 'lines', depth: 'horizontal' },
-		{ title: 'Urban Light', caption: 'Downtown reflections', hue: 35, aspect: 1.33, pattern: 'rects', depth: 'radial' },
-		{ title: 'Mountain Pass', caption: 'Sierra Nevada, early morning', hue: 200, aspect: 1.5, pattern: 'circles', depth: 'vertical' },
-		{ title: 'Still Water', caption: 'Alpine lake reflection', hue: 180, aspect: 1.78, pattern: 'lines', depth: 'horizontal' },
-		{ title: 'Desert Bloom', caption: 'Joshua Tree in spring', hue: 15, aspect: 1.0, pattern: 'rects', depth: 'radial' },
-	];
-
-	onMount(() => {
-		const samplePhoto: Photo = {
+	const photos = [
+		{
 			slug: 'mountain-lake',
 			title: 'Mountain Lake',
-			caption: 'Alpine depth sample',
+			caption: 'Alpine reflections',
 			src: '/samples/sample.jpg',
 			depthSrc: '/samples/sample-depth.jpg',
 			aspect: 1.5,
-		};
+		},
+		{
+			slug: 'mountain-lake-2',
+			title: 'Golden Hour',
+			caption: 'Last light on the peaks',
+			src: '/samples/sample.jpg',
+			depthSrc: '/samples/sample-depth.jpg',
+			aspect: 1.5,
+		},
+		{
+			slug: 'mountain-lake-3',
+			title: 'Still Water',
+			caption: 'Dawn at the lake',
+			src: '/samples/sample.jpg',
+			depthSrc: '/samples/sample-depth.jpg',
+			aspect: 1.5,
+		},
+	];
 
-		const procedural = demoData.map((d) => {
-			const w = 640;
-			const h = Math.round(w / d.aspect);
-			return {
-				slug: d.title.toLowerCase().replace(/\s+/g, '-'),
-				title: d.title,
-				caption: d.caption,
-				src: generateImage(w, h, d.hue, d.pattern),
-				depthSrc: generateDepthMap(w, h, d.depth),
-				aspect: d.aspect,
-			};
-		});
+	let currentIndex = $state(0);
+	let mode = $state<'parallax' | 'focus'>('parallax');
+	let uiVisible = $state(true);
+	let stripOpen = $state(false);
+	let galleryEl: HTMLDivElement;
+	let slideEls: HTMLDivElement[] = [];
 
-		photos = [samplePhoto, ...procedural];
-	});
+	let photo = $derived(photos[currentIndex]);
 
-	function openViewer(index: number) {
-		viewerIndex = index;
-		viewerOpen = true;
+	function scrollTo(index: number) {
+		slideEls[index]?.scrollIntoView({ behavior: 'smooth' });
 	}
+
+	function navigate(dir: -1 | 1) {
+		const next = currentIndex + dir;
+		if (next >= 0 && next < photos.length) scrollTo(next);
+	}
+
+	function toggleMode() {
+		mode = mode === 'parallax' ? 'focus' : 'parallax';
+	}
+
+	onMount(() => {
+		let fadeTimer: ReturnType<typeof setTimeout>;
+
+		function resetFade() {
+			uiVisible = false;
+			clearTimeout(fadeTimer);
+			fadeTimer = setTimeout(() => {
+				uiVisible = true;
+			}, 2500);
+		}
+
+		function onMouseMove() {
+			resetFade();
+		}
+
+		function onKeyDown(e: KeyboardEvent) {
+			if (e.key === 'ArrowDown' || e.key === 'j') {
+				e.preventDefault();
+				navigate(1);
+			} else if (e.key === 'ArrowUp' || e.key === 'k') {
+				e.preventDefault();
+				navigate(-1);
+			} else if (e.key === ' ') {
+				e.preventDefault();
+				toggleMode();
+			}
+		}
+
+		window.addEventListener('mousemove', onMouseMove);
+		window.addEventListener('keydown', onKeyDown);
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					if (entry.isIntersecting) {
+						const idx = slideEls.indexOf(entry.target as HTMLDivElement);
+						if (idx !== -1) currentIndex = idx;
+					}
+				}
+			},
+			{ root: galleryEl, threshold: 0.5 }
+		);
+
+		for (const el of slideEls) {
+			if (el) observer.observe(el);
+		}
+
+		return () => {
+			clearTimeout(fadeTimer);
+			window.removeEventListener('mousemove', onMouseMove);
+			window.removeEventListener('keydown', onKeyDown);
+			observer.disconnect();
+		};
+	});
 </script>
 
 <svelte:head>
 	<title>morgan.photos</title>
 </svelte:head>
 
-<main>
-	<header>
-		<h1>morgan.photos</h1>
-	</header>
+<div class="gallery" bind:this={galleryEl}>
+	{#each photos as p, i}
+		<div class="slide" bind:this={slideEls[i]}>
+			{#if mode === 'focus' && i === currentIndex}
+				{#key `focus-${i}`}
+					<DepthSlice src={p.src} depthSrc={p.depthSrc} alt={p.title} />
+				{/key}
+			{:else}
+				{#key `parallax-${i}`}
+					<DepthPhoto
+						src={p.src}
+						depthSrc={p.depthSrc}
+						alt={p.title}
+						aspect={p.aspect}
+						intensity={0.02}
+						fill
+					/>
+				{/key}
+			{/if}
+		</div>
+	{/each}
+</div>
 
-	{#if photos.length > 0}
-		<PhotoGrid {photos} onselect={openViewer} />
-	{/if}
+<div class="overlay" style:opacity={uiVisible ? 1 : 0}>
+	<span class="name">morgan.photos</span>
 
-	{#if viewerOpen}
-		<PhotoViewer
-			{photos}
-			bind:currentIndex={viewerIndex}
-			onclose={() => viewerOpen = false}
-		/>
-	{/if}
-</main>
+	<div class="info">
+		<h2>{photo.title}</h2>
+		{#if photo.caption}
+			<p>{photo.caption}</p>
+		{/if}
+	</div>
+
+	<div class="controls">
+		<span class="counter">{currentIndex + 1} / {photos.length}</span>
+		<div class="mode-toggle">
+			<button
+				class="mode-btn"
+				class:active={mode === 'parallax'}
+				onclick={() => { mode = 'parallax'; }}
+			>
+				Parallax
+			</button>
+			<button
+				class="mode-btn"
+				class:active={mode === 'focus'}
+				onclick={() => { mode = 'focus'; }}
+			>
+				Focus
+			</button>
+		</div>
+		<button class="grid-toggle" onclick={() => { stripOpen = !stripOpen; }}>
+			⊞
+		</button>
+	</div>
+</div>
+
+<div class="thumb-strip" class:open={stripOpen}>
+	{#each photos as p, i}
+		<button class="thumb-btn" onclick={() => { scrollTo(i); stripOpen = false; }}>
+			<img
+				class="thumb"
+				class:active={i === currentIndex}
+				src={p.src}
+				alt={p.title}
+			/>
+		</button>
+	{/each}
+</div>
 
 <style>
-	main {
-		min-height: 100vh;
+	.gallery {
+		height: 100vh;
+		overflow-y: scroll;
+		scroll-snap-type: y mandatory;
+		scroll-behavior: smooth;
 	}
-	header {
-		padding: 2rem 2rem 0;
-		max-width: 1600px;
-		margin: 0 auto;
+
+	.slide {
+		height: 100vh;
+		width: 100vw;
+		scroll-snap-align: start;
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
 	}
-	h1 {
-		font-size: 1.25rem;
+
+	.slide :global(canvas) {
+		width: 100vw !important;
+		height: 100vh !important;
+	}
+
+	.overlay {
+		position: fixed;
+		inset: 0;
+		z-index: 10;
+		pointer-events: none;
+		transition: opacity 0.6s ease;
+	}
+
+	.overlay > :global(*) {
+		pointer-events: auto;
+	}
+
+	.name {
+		position: absolute;
+		top: 1.5rem;
+		left: 1.5rem;
+		font-size: 0.8rem;
 		font-weight: 300;
-		letter-spacing: 0.1em;
+		letter-spacing: 0.15em;
 		color: var(--color-text-muted);
+	}
+
+	.info {
+		position: absolute;
+		bottom: 2rem;
+		left: 2rem;
+	}
+
+	.info h2 {
+		font-size: 1rem;
+		font-weight: 400;
+		letter-spacing: 0.05em;
+	}
+
+	.info p {
+		font-size: 0.8rem;
+		color: var(--color-text-muted);
+		margin-top: 0.25rem;
+	}
+
+	.controls {
+		position: absolute;
+		bottom: 2rem;
+		right: 2rem;
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.counter {
+		font-size: 0.75rem;
+		color: var(--color-text-dim);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.mode-toggle {
+		display: flex;
+		gap: 2px;
+		background: rgba(255, 255, 255, 0.06);
+		border-radius: 6px;
+		padding: 2px;
+	}
+
+	.mode-btn {
+		all: unset;
+		font-size: 0.65rem;
+		padding: 0.2rem 0.5rem;
+		border-radius: 4px;
+		color: var(--color-text-dim);
+		cursor: pointer;
+		transition: all 0.2s;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.mode-btn:hover {
+		color: var(--color-text-muted);
+	}
+
+	.mode-btn.active {
+		background: rgba(255, 255, 255, 0.1);
+		color: var(--color-text);
+	}
+
+	.grid-toggle {
+		all: unset;
+		cursor: pointer;
+		color: var(--color-text-dim);
+		font-size: 0.9rem;
+		padding: 0.25rem;
+		transition: color 0.2s;
+	}
+
+	.grid-toggle:hover {
+		color: var(--color-text);
+	}
+
+	.thumb-strip {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 20;
+		background: rgba(0, 0, 0, 0.85);
+		backdrop-filter: blur(10px);
+		padding: 0.5rem 1rem;
+		display: flex;
+		gap: 0.5rem;
+		justify-content: center;
+		transform: translateY(100%);
+		transition: transform 0.3s ease;
+	}
+
+	.thumb-strip.open {
+		transform: translateY(0);
+	}
+
+	.thumb-btn {
+		all: unset;
+		cursor: pointer;
+	}
+
+	.thumb {
+		width: 48px;
+		height: 48px;
+		border-radius: 4px;
+		object-fit: cover;
+		opacity: 0.5;
+		transition: opacity 0.2s;
+		border: 1px solid transparent;
+		display: block;
+	}
+
+	.thumb:hover {
+		opacity: 0.8;
+	}
+
+	.thumb.active {
+		opacity: 1;
+		border-color: rgba(255, 255, 255, 0.3);
 	}
 </style>

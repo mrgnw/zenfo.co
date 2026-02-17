@@ -8,12 +8,14 @@
 		alt,
 		aspect = 1.5,
 		intensity = 0.02,
+		fill = false,
 	}: {
 		src: string;
 		depthSrc: string;
 		alt: string;
 		aspect?: number;
 		intensity?: number;
+		fill?: boolean;
 	} = $props();
 
 	let canvas: HTMLCanvasElement;
@@ -72,13 +74,13 @@
 {#if webglSupported}
 	<canvas
 		bind:this={canvas}
-		style="aspect-ratio: {aspect}; width: 100%;"
+		style={fill ? 'width: 100%; height: 100%;' : `aspect-ratio: ${aspect}; width: 100%;`}
 		onmousemove={onPointerMove}
 		ontouchmove={onPointerMove}
 		onmouseleave={onPointerLeave}
 	></canvas>
 {:else}
-	<img {src} {alt} style="aspect-ratio: {aspect}; width: 100%; object-fit: cover;" />
+	<img {src} {alt} style={fill ? 'width: 100%; height: 100%; object-fit: cover;' : `aspect-ratio: ${aspect}; width: 100%; object-fit: cover;`} />
 {/if}
 
 <style>
