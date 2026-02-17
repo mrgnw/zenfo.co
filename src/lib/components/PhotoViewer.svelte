@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Photo } from '$lib/types.js';
 	import DepthPhoto from './DepthPhoto.svelte';
+	import DepthSlice from './DepthSlice.svelte';
 
 	let {
 		photos,
@@ -12,6 +13,7 @@
 		onclose?: () => void;
 	} = $props();
 
+	let mode = $state<'parallax' | 'focus'>('parallax');
 	let photo = $derived(photos[currentIndex]);
 
 	function prev() {
@@ -42,15 +44,23 @@
 <div class="overlay" onclick={onclose}>
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="viewer" onclick={stop(() => {})}>
-		{#key currentIndex}
+		{#key `${currentIndex}-${mode}`}
 			<div class="photo-wrap">
-				<DepthPhoto
-					src={photo.src}
-					depthSrc={photo.depthSrc}
-					alt={photo.title}
-					aspect={photo.aspect}
-					intensity={0.02}
-				/>
+				{#if mode === 'parallax'}
+					<DepthPhoto
+						src={photo.src}
+						depthSrc={photo.depthSrc}
+						alt={photo.title}
+						aspect={photo.aspect}
+						intensity={0.02}
+					/>
+				{:else}
+					<DepthSlice
+						src={photo.src}
+						depthSrc={photo.depthSrc}
+						alt={photo.title}
+					/>
+				{/if}
 			</div>
 		{/key}
 		<div class="caption">
@@ -58,7 +68,25 @@
 			{#if photo.caption}
 				<p>{photo.caption}</p>
 			{/if}
-			<span class="counter">{currentIndex + 1} / {photos.length}</span>
+			<div class="controls">
+				<span class="counter">{currentIndex + 1} / {photos.length}</span>
+				<div class="mode-toggle">
+					<button
+						class="mode-btn"
+						class:active={mode === 'parallax'}
+						onclick={stop(() => { mode = 'parallax'; })}
+					>
+						Parallax
+					</button>
+					<button
+						class="mode-btn"
+						class:active={mode === 'focus'}
+						onclick={stop(() => { mode = 'focus'; })}
+					>
+						Focus
+					</button>
+				</div>
+			</div>
 		</div>
 	</div>
 
@@ -106,9 +134,39 @@
 		color: var(--color-text-muted);
 		margin: 0.25rem 0 0;
 	}
+	.controls {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1rem;
+		margin-top: 0.5rem;
+	}
 	.counter {
 		font-size: 0.75rem;
 		color: var(--color-text-muted);
+	}
+	.mode-toggle {
+		display: flex;
+		gap: 0.25rem;
+		background: rgba(255, 255, 255, 0.06);
+		border-radius: 0.375rem;
+		padding: 0.15rem;
+	}
+	.mode-btn {
+		all: unset;
+		font-size: 0.7rem;
+		padding: 0.25rem 0.6rem;
+		border-radius: 0.25rem;
+		color: var(--color-text-muted);
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+	.mode-btn:hover {
+		color: var(--color-text);
+	}
+	.mode-btn.active {
+		background: rgba(255, 255, 255, 0.12);
+		color: var(--color-text);
 	}
 	.nav {
 		all: unset;

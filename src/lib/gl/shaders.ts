@@ -26,6 +26,13 @@ void main() {
 	float depth = texture2D(u_depth, vUv).r;
 	vec2 offset = u_pointer * depth * u_intensity;
 	vec2 uv = mirrored(vUv + offset);
-	gl_FragColor = texture2D(u_image, uv);
+	vec4 color = texture2D(u_image, uv);
+
+	// depth-based vignette: darken edges more for far pixels
+	vec2 vc = vUv * 2.0 - 1.0;
+	float vignette = 1.0 - dot(vc, vc) * (0.15 + 0.2 * (1.0 - depth));
+	color.rgb *= clamp(vignette, 0.0, 1.0);
+
+	gl_FragColor = color;
 }
 `;

@@ -97,7 +97,16 @@
 	];
 
 	onMount(() => {
-		photos = demoData.map((d) => {
+		const samplePhoto: Photo = {
+			slug: 'mountain-lake',
+			title: 'Mountain Lake',
+			caption: 'Alpine depth sample',
+			src: '/samples/sample.jpg',
+			depthSrc: '/samples/sample-depth.jpg',
+			aspect: 1.5,
+		};
+
+		const procedural = demoData.map((d) => {
 			const w = 640;
 			const h = Math.round(w / d.aspect);
 			return {
@@ -109,6 +118,8 @@
 				aspect: d.aspect,
 			};
 		});
+
+		photos = [samplePhoto, ...procedural];
 	});
 
 	function openViewer(index: number) {
