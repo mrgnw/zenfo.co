@@ -51,7 +51,6 @@
 						src={photo.src}
 						depthSrc={photo.depthSrc}
 						alt={photo.title}
-						aspect={photo.aspect}
 						intensity={0.02}
 					/>
 				{:else}
@@ -116,7 +115,8 @@
 		gap: 1rem;
 	}
 	.photo-wrap {
-		max-height: 80vh;
+		width: 90vw;
+		height: 80vh;
 		overflow: hidden;
 	}
 	.caption {

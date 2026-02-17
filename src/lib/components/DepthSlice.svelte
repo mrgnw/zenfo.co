@@ -141,7 +141,7 @@
 		width: 100%;
 		height: 100%;
 		background: #000;
-		cursor: crosshair;
+		cursor: default;
 	}
 	canvas {
 		max-width: 100%;

@@ -10,7 +10,6 @@
 			caption: 'Alpine reflections',
 			src: '/samples/sample.jpg',
 			depthSrc: '/samples/sample-depth.jpg',
-			aspect: 1.5,
 		},
 		{
 			slug: 'mountain-lake-2',
@@ -18,7 +17,6 @@
 			caption: 'Last light on the peaks',
 			src: '/samples/sample.jpg',
 			depthSrc: '/samples/sample-depth.jpg',
-			aspect: 1.5,
 		},
 		{
 			slug: 'mountain-lake-3',
@@ -26,7 +24,6 @@
 			caption: 'Dawn at the lake',
 			src: '/samples/sample.jpg',
 			depthSrc: '/samples/sample-depth.jpg',
-			aspect: 1.5,
 		},
 	];
 
@@ -125,9 +122,7 @@
 						src={p.src}
 						depthSrc={p.depthSrc}
 						alt={p.title}
-						aspect={p.aspect}
 						intensity={0.02}
-						fill
 					/>
 				{/key}
 			{/if}
@@ -195,15 +190,8 @@
 		width: 100vw;
 		scroll-snap-align: start;
 		position: relative;
-		display: flex;
-		align-items: center;
-		justify-content: center;
 		overflow: hidden;
-	}
-
-	.slide :global(canvas) {
-		width: 100vw !important;
-		height: 100vh !important;
+		background: #000;
 	}
 
 	.overlay {

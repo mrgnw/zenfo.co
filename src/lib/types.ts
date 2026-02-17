@@ -4,5 +4,4 @@ export interface Photo {
 	caption?: string;
 	src: string;
 	depthSrc: string;
-	aspect: number;
 }

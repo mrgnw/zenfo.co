@@ -61,6 +61,8 @@ export class ParallaxRenderer {
 	private pointerCurrent = { x: 0, y: 0 };
 
 	private locs: Record<string, WebGLUniformLocation | null> = {};
+	private imageWidth = 1;
+	private imageHeight = 1;
 
 	intensity = 0.02;
 
@@ -90,6 +92,8 @@ export class ParallaxRenderer {
 			u_depth: gl.getUniformLocation(this.program, 'u_depth'),
 			u_pointer: gl.getUniformLocation(this.program, 'u_pointer'),
 			u_intensity: gl.getUniformLocation(this.program, 'u_intensity'),
+			u_resolution: gl.getUniformLocation(this.program, 'u_resolution'),
+			u_imageRes: gl.getUniformLocation(this.program, 'u_imageRes'),
 		};
 
 		gl.uniform1i(this.locs.u_image, 0);
@@ -101,6 +105,8 @@ export class ParallaxRenderer {
 	async loadTextures(imageUrl: string, depthUrl: string) {
 		if (!this.gl) return;
 		const [img, depth] = await Promise.all([loadImage(imageUrl), loadImage(depthUrl)]);
+		this.imageWidth = img.naturalWidth;
+		this.imageHeight = img.naturalHeight;
 		this.imageTex = createTexture(this.gl, img);
 		this.depthTex = createTexture(this.gl, depth);
 	}
@@ -158,6 +164,8 @@ export class ParallaxRenderer {
 		gl.useProgram(this.program);
 		gl.uniform2f(this.locs.u_pointer, this.pointerCurrent.x + driftX, this.pointerCurrent.y + driftY);
 		gl.uniform1f(this.locs.u_intensity, this.intensity);
+		gl.uniform2f(this.locs.u_resolution, canvas.width, canvas.height);
+		gl.uniform2f(this.locs.u_imageRes, this.imageWidth, this.imageHeight);
 
 		if (this.imageTex) {
 			gl.activeTexture(gl.TEXTURE0);

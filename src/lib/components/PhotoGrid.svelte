@@ -14,13 +14,14 @@
 <div class="grid">
 	{#each photos as photo, i}
 		<button class="grid-item" onclick={() => onselect?.(i)}>
-			<DepthPhoto
-				src={photo.src}
-				depthSrc={photo.depthSrc}
-				alt={photo.title}
-				aspect={photo.aspect}
-				intensity={0.01}
-			/>
+			<div class="photo-frame">
+				<DepthPhoto
+					src={photo.src}
+					depthSrc={photo.depthSrc}
+					alt={photo.title}
+					intensity={0.01}
+				/>
+			</div>
 			<span class="title">{photo.title}</span>
 		</button>
 	{/each}
@@ -42,6 +43,11 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		transition: transform 0.2s ease;
+	}
+	.photo-frame {
+		aspect-ratio: 3 / 4;
+		overflow: hidden;
+		border-radius: 2px;
 	}
 	.grid-item:hover {
 		transform: scale(1.01);
