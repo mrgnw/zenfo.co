@@ -1,3 +1,5 @@
+port := "3470"
+
 install:
 	pnpm install
 
@@ -15,5 +17,8 @@ preview: install
 
 depth dir:
 	uv run scripts/generate-depth.py {{dir}}
+
+tunnel:
+	cloudflared tunnel --url http://localhost:{{port}}
 
 ci: check build
