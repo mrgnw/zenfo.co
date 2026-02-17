@@ -1,13 +1,16 @@
-dev:
+install:
+	pnpm install
+
+dev: install
 	pnpm dev
 
-build:
+build: install
 	pnpm build
 
-check:
+check: install
 	pnpm check
 
-preview:
+preview: install
 	pnpm preview
 
 depth dir:
