@@ -10,4 +10,12 @@ export default defineConfig({
 	preview: {
 		port: 3470,
 	},
+	optimizeDeps: {
+		esbuildOptions: {
+			target: 'esnext',
+		},
+	},
+	build: {
+		target: 'esnext',
+	},
 });
