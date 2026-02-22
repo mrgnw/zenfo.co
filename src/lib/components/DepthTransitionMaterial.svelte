@@ -13,6 +13,9 @@
 		saturationB?: number;
 		pointer?: { x: number; y: number };
 		intensity?: number;
+		imageSizeA?: { x: number; y: number };
+		imageSizeB?: { x: number; y: number };
+		resolution?: { x: number; y: number };
 	}
 
 	let {
@@ -25,6 +28,9 @@
 		saturationB = 1,
 		pointer = { x: 0.5, y: 0.5 },
 		intensity = 0.02,
+		imageSizeA = { x: 1920, y: 1080 },
+		imageSizeB = { x: 1920, y: 1080 },
+		resolution = { x: 1920, y: 1080 },
 	}: Props = $props();
 
 	const vertexShader = /* glsl */ `
@@ -46,17 +52,42 @@
 		uniform vec2 u_pointer;
 		uniform float u_intensity;
 		uniform vec2 u_resolution;
+		uniform vec2 u_image_size_a;
+		uniform vec2 u_image_size_b;
 
 		varying vec2 vUv;
 
-		// Cover-fit UV correction — maps texture to fill the quad while preserving aspect ratio
-		vec2 coverUv(vec2 uv, vec2 imgSize, vec2 quadSize) {
-			vec2 s = quadSize / imgSize;
-			float scale = max(s.x, s.y);
-			vec2 offset = (quadSize - imgSize * scale) / 2.0 / quadSize;
-			return uv * (quadSize / (imgSize * scale)) + offset * 0.0
-				+ (uv - 0.5) * (1.0 - quadSize / (imgSize * scale)) * 0.0;
+	// Hybrid cover/contain: uses cover when orientations match, blends toward
+	// contain when they differ significantly to avoid extreme cropping
+	vec2 coverUv(vec2 uv, vec2 imgSize, vec2 quadSize) {
+		if (imgSize.x <= 0.0 || imgSize.y <= 0.0 || quadSize.x <= 0.0 || quadSize.y <= 0.0) return uv;
+		float imgAspect = imgSize.x / imgSize.y;
+		float quadAspect = quadSize.x / quadSize.y;
+		
+		// Cover scale (fill viewport, crop excess)
+		vec2 coverScale = vec2(1.0);
+		if (imgAspect > quadAspect) {
+			coverScale.x = quadAspect / imgAspect;
+		} else {
+			coverScale.y = imgAspect / quadAspect;
 		}
+		
+		// Contain scale (show full image, add bars)
+		vec2 containScale = vec2(1.0);
+		if (imgAspect > quadAspect) {
+			containScale.y = imgAspect / quadAspect;
+		} else {
+			containScale.x = quadAspect / imgAspect;
+		}
+		
+		// Mismatch factor: 0 when aspects match, 1 when very different
+		float ratio = imgAspect / quadAspect;
+		float mismatch = 1.0 - min(ratio, 1.0 / ratio);
+		mismatch = smoothstep(0.0, 0.6, mismatch);
+		
+		vec2 scale = mix(coverScale, containScale, mismatch);
+		return (uv - 0.5) * scale + 0.5;
+	}
 
 		// Mirror wrap to avoid edge tearing from parallax
 		vec2 mirrored(vec2 uv) {
@@ -86,38 +117,28 @@
 		}
 
 		void main() {
-			vec2 uv = vUv;
+			// Cover-fit UV mapping per image
+			vec2 uvA = coverUv(vUv, u_image_size_a, u_resolution);
+			vec2 uvB = coverUv(vUv, u_image_size_b, u_resolution);
 
-			// Pointer-driven parallax on whichever image is dominant
+			// Depth-driven parallax (pointer only, not transition)
 			vec2 pointerOffset = (u_pointer - 0.5) * u_intensity;
+			float dA = texture2D(u_depth_a, mirrored(uvA)).r;
+			float dB = texture2D(u_depth_b, mirrored(uvB)).r;
 
-			// Sample depth from outgoing image
-			float dA = texture2D(u_depth_a, mirrored(uv)).r;
-			float dB = texture2D(u_depth_b, mirrored(uv)).r;
+			uvA = mirrored(uvA - pointerOffset * dA);
+			uvB = mirrored(uvB - pointerOffset * dB);
 
-			// Per-pixel progress: foreground (high depth) peels first
-			float spread = 0.35;
-			float pixelProgress = smoothstep(dA - spread, dA + spread, u_progress);
-
-			// Parallax displacement — outgoing fades, incoming takes over
-			vec2 uvA = mirrored(uv - pointerOffset * dA * (1.0 - pixelProgress));
-			vec2 uvB = mirrored(uv - pointerOffset * dB * pixelProgress);
-
-			// Sample with blur proportional to pixel progress (outgoing blurs out)
-			float blurAmount = pixelProgress * (1.0 - pixelProgress) * 8.0;
-			vec4 colA = blurSample(u_image_a, uvA, blurAmount * 2.0 + 0.001);
+			// Sample both images
+			vec4 colA = texture2D(u_image_a, uvA);
 			vec4 colB = texture2D(u_image_b, uvB);
 
-			// Saturation adjustment (for B&W ↔ color transitions)
-			float satA = mix(u_saturation_a, u_saturation_b, pixelProgress);
-			colA.rgb = adjustSat(colA.rgb, satA);
+			// Saturation
+			colA.rgb = adjustSat(colA.rgb, u_saturation_a);
 			colB.rgb = adjustSat(colB.rgb, u_saturation_b);
 
-			// Depth-modulated vignette on outgoing image
-			float vigA = smoothstep(0.0, 0.4, dA) * (1.0 - pixelProgress);
-			colA.rgb *= (1.0 - vigA * 0.3);
-
-			gl_FragColor = mix(colA, colB, pixelProgress);
+			// Simple crossfade
+			gl_FragColor = mix(colA, colB, u_progress);
 		}
 	`;
 
@@ -135,6 +156,8 @@
 			u_pointer: { value: new Vector2(0.5, 0.5) },
 			u_intensity: { value: 0.02 },
 			u_resolution: { value: new Vector2(1920, 1080) },
+			u_image_size_a: { value: new Vector2(1920, 1080) },
+			u_image_size_b: { value: new Vector2(1920, 1080) },
 		},
 	});
 
@@ -148,6 +171,9 @@
 		material.uniforms.u_saturation_b.value = saturationB;
 		material.uniforms.u_pointer.value.set(pointer.x, pointer.y);
 		material.uniforms.u_intensity.value = intensity;
+		material.uniforms.u_image_size_a.value.set(imageSizeA.x, imageSizeA.y);
+		material.uniforms.u_image_size_b.value.set(imageSizeB.x, imageSizeB.y);
+		material.uniforms.u_resolution.value.set(resolution.x, resolution.y);
 	});
 </script>
 

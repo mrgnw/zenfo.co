@@ -1,14 +1,7 @@
 <script lang="ts">
 	import { Canvas } from '@threlte/core';
 	import HeroScene from './HeroScene.svelte';
-
-	interface HeroPhoto {
-		src: string;
-		depthSrc: string;
-		title: string;
-		caption?: string;
-		saturation?: number; // 0 for B&W, 1 for full color
-	}
+	import type { HeroPhoto } from '$lib/types';
 
 	interface Props {
 		photos: HeroPhoto[];
@@ -70,7 +63,13 @@
 		}, AUTO_ADVANCE);
 	}
 
+	// Idle drift: subtle Lissajous motion when user hasn't moved the pointer
+	let lastInteraction = 0;
+	const IDLE_DELAY = 2000;
+	const DRIFT_RADIUS = 0.08;
+
 	function onPointerMove(e: PointerEvent) {
+		lastInteraction = performance.now();
 		const rect = canvasEl?.getBoundingClientRect();
 		if (!rect) return;
 		targetPointer = {
@@ -80,6 +79,7 @@
 	}
 
 	function onTouchMove(e: TouchEvent) {
+		lastInteraction = performance.now();
 		const t = e.touches[0];
 		const rect = canvasEl?.getBoundingClientRect();
 		if (!rect || !t) return;
@@ -89,10 +89,17 @@
 		};
 	}
 
-	// Lerp pointer on rAF outside of Threlte
 	$effect(() => {
 		let id: number;
 		function tick() {
+			const now = performance.now();
+			if (now - lastInteraction > IDLE_DELAY) {
+				const t = now * 0.0003;
+				targetPointer = {
+					x: 0.5 + Math.sin(t) * DRIFT_RADIUS,
+					y: 0.5 + Math.cos(t * 0.7) * DRIFT_RADIUS,
+				};
+			}
 			pointer = {
 				x: pointer.x + (targetPointer.x - pointer.x) * 0.06,
 				y: pointer.y + (targetPointer.y - pointer.y) * 0.06,
@@ -116,7 +123,6 @@
 		};
 	});
 
-	// Swipe detection
 	let touchStartX = 0;
 	function onTouchStart(e: TouchEvent) {
 		touchStartX = e.touches[0]?.clientX ?? 0;
@@ -143,18 +149,13 @@
 >
 	<Canvas>
 		<HeroScene
-			srcA={current.src}
-			depthA={current.depthSrc}
-			srcB={next.src}
-			depthB={next.depthSrc}
+			photoA={current}
+			photoB={next}
 			{progress}
-			saturationA={current.saturation ?? 1}
-			saturationB={next.saturation ?? 1}
 			{pointer}
 		/>
 	</Canvas>
 
-	<!-- Caption overlay -->
 	<div class="overlay" style:opacity={uiOpacity}>
 		<div class="caption">
 			<h2>{current.title}</h2>
@@ -164,7 +165,6 @@
 		</div>
 	</div>
 
-	<!-- Dot indicators -->
 	<div class="dots" aria-label="Photo navigation">
 		{#each photos as _, i}
 			<button
@@ -176,9 +176,8 @@
 		{/each}
 	</div>
 
-	<!-- Arrow navigation -->
-	<button class="arrow arrow-left" onclick={() => navigate(-1)} aria-label="Previous photo">‹</button>
-	<button class="arrow arrow-right" onclick={() => navigate(1)} aria-label="Next photo">›</button>
+	<button class="arrow arrow-left" onclick={() => navigate(-1)} aria-label="Previous">&#8249;</button>
+	<button class="arrow arrow-right" onclick={() => navigate(1)} aria-label="Next">&#8250;</button>
 </div>
 
 <style>

@@ -1,19 +1,17 @@
 <script lang="ts">
-	import HexReveal from './HexReveal.svelte';
-
 	interface TablePhoto {
 		src: string;
 		title: string;
 		caption?: string;
-		isHex?: boolean; // Barcelona tiles special treatment
+		w: number;
+		h: number;
 	}
 
 	interface Props {
 		photos: TablePhoto[];
-		heroCount?: number; // how many of the leading photos are also heroes
 	}
 
-	let { photos, heroCount = 0 }: Props = $props();
+	let { photos }: Props = $props();
 
 	let expandedIndex = $state<number | null>(null);
 
@@ -49,26 +47,22 @@
 <svelte:window onkeydown={onKeyDown} />
 
 <section class="light-table" aria-label="Photo collection">
-	<div class="grid">
+	<div class="masonry">
 		{#each photos as photo, i}
-			{@const style = `view-transition-name: photo-${i}`}
 			<button
 				class="cell"
-				class:is-hex={photo.isHex}
 				onclick={() => open(i)}
 				aria-label="View {photo.title}"
-				{style}
+				style="view-transition-name: photo-{i}"
 			>
-				{#if photo.isHex}
-					<HexReveal src={photo.src} alt={photo.title} />
-				{:else}
-					<img
-						class="thumb"
-						src={photo.src}
-						alt={photo.title}
-						loading="lazy"
-					/>
-				{/if}
+				<img
+					class="thumb"
+					src={photo.src}
+					alt={photo.title}
+					loading="lazy"
+					width={photo.w}
+					height={photo.h}
+				/>
 				<div class="cell-overlay">
 					<span class="cell-title">{photo.title}</span>
 				</div>
@@ -104,34 +98,38 @@
 		min-height: 100vh;
 	}
 
-	.grid {
+	.masonry {
 		max-width: 1400px;
 		margin: 0 auto;
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-		gap: 4px;
+		columns: 3;
+		column-gap: 4px;
+	}
+
+	@media (max-width: 900px) {
+		.masonry { columns: 2; }
+	}
+
+	@media (max-width: 500px) {
+		.masonry { columns: 1; }
 	}
 
 	.cell {
 		position: relative;
-		aspect-ratio: 3 / 2;
 		overflow: hidden;
 		background: #111;
 		border: none;
 		cursor: pointer;
 		padding: 0;
 		display: block;
-	}
-
-	.cell.is-hex {
-		aspect-ratio: 16 / 10;
+		width: 100%;
+		margin-bottom: 4px;
+		break-inside: avoid;
 	}
 
 	.thumb {
 		display: block;
 		width: 100%;
-		height: 100%;
-		object-fit: cover;
+		height: auto;
 		transition: transform 0.5s ease, filter 0.5s ease;
 		filter: brightness(0.85);
 	}
