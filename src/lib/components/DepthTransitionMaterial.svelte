@@ -126,19 +126,20 @@
 			float dA = texture2D(u_depth_a, mirrored(uvA)).r;
 			float dB = texture2D(u_depth_b, mirrored(uvB)).r;
 
+			float spread = 0.15;
+			float pixelProgress = smoothstep(dA - spread, dA + spread, u_progress);
+
 			uvA = mirrored(uvA - pointerOffset * dA);
 			uvB = mirrored(uvB - pointerOffset * dB);
 
-			// Sample both images
-			vec4 colA = texture2D(u_image_a, uvA);
+			vec4 colA = blurSample(u_image_a, uvA, pixelProgress * 3.0);
 			vec4 colB = texture2D(u_image_b, uvB);
 
 			// Saturation
 			colA.rgb = adjustSat(colA.rgb, u_saturation_a);
 			colB.rgb = adjustSat(colB.rgb, u_saturation_b);
 
-			// Simple crossfade
-			gl_FragColor = mix(colA, colB, u_progress);
+			gl_FragColor = mix(colA, colB, pixelProgress);
 		}
 	`;
 
