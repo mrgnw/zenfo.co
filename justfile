@@ -22,6 +22,6 @@ tunnel:
 	cloudflared tunnel --url http://localhost:{{port}}
 
 deploy: build
-	pnpm run deploy
+	pnpm ship
 
 ci: check build
